@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geo Palace Hotel Booking</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+        }
+        form, #previewContent {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: #fff;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        #visitorFields, #informationFields {
+            margin-bottom: 15px;
+        }
+        .hidden {
+            display: none;
+        }
+        #pdfContent {
+            background-color: white;
+            padding: 40px 60px;
+            box-sizing: border-box;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+        }
+        .info-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .info-item input {
+            flex-grow: 1;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+        .info-item button {
+            padding: 5px 10px;
+            margin-right: 0;
+        }
+        
+        /* Mobile Responsiveness */
+        @media screen and (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            form, #previewContent {
+                padding: 15px;
+            }
+            select, input, textarea {
+                font-size: 14px;
+            }
+            button {
+                width: 100%;
+                margin-right: 0;
+            }
+            .info-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .info-item input {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .info-item button {
+                align-self: flex-end;
+            }
+            table {
+                font-size: 14px;
+            }
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Geo Palace Hotel Booking Form</h1>
+    <form id="bookingForm">
+        <label for="roomType">Room Type:</label>
+        <select id="roomType" required>
+            <option value="">Select Room Type</option>
+            <option value="single">Single</option>
+            <option value="double">Double</option>
+            <option value="triple">Triple</option>
+            <option value="quadruple">Quadruple</option>
+        </select>
+
+        <div id="visitorFields"></div>
+
+        <label for="arrivalDate">Arrival Date:</label>
+        <input type="date" id="arrivalDate" required>
+
+        <label for="departureDate">Departure Date:</label>
+        <input type="date" id="departureDate" required>
+
+        <h3>Hotel Information</h3>
+        <div id="informationFields"></div>
+        <button type="button" onclick="addInformationField()">Add Information</button>
+
+        <button type="button" onclick="previewData()">Preview Data</button>
+        <button type="submit">Generate PDF</button>
+    </form>
+
+    <div id="previewContent" class="hidden"></div>
+
+    <div id="pdfContent" class="hidden">
+        <!-- make style of image fit  200 100-->
+        <img src="logo.png" alt="Geo Palace Logo" style = "width: 150px; margin: 0 auto; display: block;">
+        <h1>Your Booking is Confirmed</h1>
+        <h2>Booking Details</h2>
+        <p><strong>Room Type:</strong> <span id="pdfRoomType"></span></p>
+        <p><strong>Arrival Date:</strong> <span id="pdfArrivalDate"></span></p>
+        <p><strong>Departure Date:</strong> <span id="pdfDepartureDate"></span></p>
+        <p><strong>Number of Nights:</strong> <span id="pdfNights"></span></p>
+        <h3>Visitors Informations</h3>
+        <table id="pdfVisitorTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <h3>Hotel Information</h3>
+        <ul id="pdfInformation"></ul>
+    </div>
+
+    <script>
+        const roomTypeSelect = document.getElementById('roomType');
+        const visitorFieldsDiv = document.getElementById('visitorFields');
+        const informationFieldsDiv = document.getElementById('informationFields');
+        const bookingForm = document.getElementById('bookingForm');
+        const previewContent = document.getElementById('previewContent');
+
+        const defaultInformation = [
+            "Geo Palace can provide you transportation once a day.",
+            "Supermarket and pharmacy deliveries are available.",
+            "Extra meals can be ordered, one hour in advance.",
+            "Drinking Alcohol is not allowed in shared areas.",
+            "Outside visitors are allowed until 12 AM only.",
+            "Check with the reception for available trips.",
+            "We are located in Cinderella compound, in front of Lagoona Dahab.",
+            "Contact us at: +201090806325"
+        ];
+
+        roomTypeSelect.addEventListener('change', updateVisitorFields);
+        bookingForm.addEventListener('submit', generatePDF);
+
+        function initializeInformationFields() {
+            informationFieldsDiv.innerHTML = '';
+            defaultInformation.forEach((info, index) => {
+                addInformationField(info);
+            });
+        }
+
+        function updateVisitorFields() {
+            const roomType = roomTypeSelect.value;
+            let visitorCount;
+
+            switch(roomType) {
+                case 'single': visitorCount = 1; break;
+                case 'double': visitorCount = 2; break;
+                case 'triple': visitorCount = 3; break;
+                case 'quadruple': visitorCount = 4; break;
+                default: visitorCount = 0;
+            }
+
+            visitorFieldsDiv.innerHTML = '';
+            for (let i = 1; i <= visitorCount; i++) {
+                visitorFieldsDiv.innerHTML += `
+                    <h3>Visitor ${i}</h3>
+                    <label for="name${i}">Name (mandatory):</label>
+                    <input type="text" id="name${i}" required>
+                    <label for="id${i}">ID (optional):</label>
+                    <input type="text" id="id${i}">
+                `;
+            }
+        }
+
+        function addInformationField(value = '') {
+            const fieldId = `info-${Date.now()}`;
+            const infoItem = document.createElement('div');
+            infoItem.className = 'info-item';
+            infoItem.innerHTML = `
+                <input type="text" id="${fieldId}" value="${value}" required>
+                <button type="button" onclick="removeInformationField('${fieldId}')">Remove</button>
+            `;
+            informationFieldsDiv.appendChild(infoItem);
+        }
+
+        function removeInformationField(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.parentElement.remove();
+            }
+        }
+
+        function previewData() {
+            const roomType = roomTypeSelect.value;
+            const arrivalDate = document.getElementById('arrivalDate').value;
+            const departureDate = document.getElementById('departureDate').value;
+
+            if (!roomType || !arrivalDate || !departureDate) {
+                alert("Please fill in all required fields before previewing.");
+                return;
+            }
+
+            const arrival = new Date(arrivalDate);
+            const departure = new Date(departureDate);
+            const nights = Math.round((departure - arrival) / (1000 * 60 * 60 * 24));
+
+            let previewHTML = `
+                <h2>Booking Preview</h2>
+                <img src="logo.png" alt="Geo Palace Logo" style = "width: 150px; margin: 0 auto; display: block;">
+                 <h1>Your Booking is Confirmed</h1>
+                <p><strong>Room Type:</strong> ${roomType}</p>
+                <p><strong>Arrival Date:</strong> ${arrivalDate}</p>
+                <p><strong>Departure Date:</strong> ${departureDate}</p>
+                <p><strong>Number of Nights:</strong> ${nights}</p>
+                <h3>Visitor Information</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (let i = 1; i <= 4; i++) {
+                const nameInput = document.getElementById(`name${i}`);
+                const idInput = document.getElementById(`id${i}`);
+                if (nameInput && idInput) {
+                    previewHTML += `
+                        <tr>
+                            <td>${nameInput.value}</td>
+                            <td>${idInput.value || 'N/A'}</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            previewHTML += `
+                    </tbody>
+                </table>
+                <h3>Hotel Information</h3>
+                <ul>
+            `;
+
+            document.querySelectorAll('#informationFields input').forEach(input => {
+                previewHTML += `<li>${input.value}</li>`;
+            });
+
+            
+
+            previewHTML += `</ul>`;
+            
+            previewHTML += `<p style="text-align: right;">Geo Palace Team</p>`;
+
+
+            previewContent.innerHTML = previewHTML;
+            previewContent.classList.remove('hidden');
+        }
+
+        function generatePDF(e) {
+            e.preventDefault();
+
+            const roomType = roomTypeSelect.value;
+            const arrivalDate = document.getElementById('arrivalDate').value;
+            const departureDate = document.getElementById('departureDate').value;
+
+            // Calculate number of nights
+            const arrival = new Date(arrivalDate);
+            const departure = new Date(departureDate);
+            const nights = Math.round((departure - arrival) / (1000 * 60 * 60 * 24));
+
+            // Update PDF content
+            document.getElementById('pdfRoomType').textContent = roomType;
+            document.getElementById('pdfArrivalDate').textContent = arrivalDate;
+            document.getElementById('pdfDepartureDate').textContent = departureDate;
+            document.getElementById('pdfNights').textContent = nights;
+
+           
+           
+
+
+
+            const visitorTableBody = document.querySelector('#pdfVisitorTable tbody');
+            visitorTableBody.innerHTML = '';
+            for (let i = 1; i <= 4; i++) {
+                const nameInput = document.getElementById(`name${i}`);
+                const idInput = document.getElementById(`id${i}`);
+                if (nameInput && idInput) {
+                    const row = visitorTableBody.insertRow();
+                    row.insertCell(0).textContent = nameInput.value;
+                    row.insertCell(1).textContent = idInput.value || 'N/A';
+                }
+            }
+
+            const pdfInformation = document.getElementById('pdfInformation');
+            pdfInformation.innerHTML = '';
+            document.querySelectorAll('#informationFields input').forEach(input => {
+                const li = document.createElement('li');
+                li.textContent = input.value;
+                pdfInformation.appendChild(li);
+            });
+
+             //add Geo Palace Team signature at the end of the pdf(as text)
+            const signature = document.createElement('p');
+
+            signature.textContent = 'Geo Palace Team';
+            signature.style.textAlign = 'right';
+            pdfInformation.appendChild(signature);
+            
+
+            // Generate PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                format: 'a4',
+                unit: 'mm'
+            });
+
+            const pdfContent = document.getElementById('pdfContent');
+            pdfContent.classList.remove('hidden');
+
+            
+
+            html2canvas(pdfContent).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgProps = doc.getImageProperties(imgData);
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                const randomNum = Math.floor(Math.random() * 10000);
+                doc.save(`Geo Palace Booking ${randomNum}.pdf`);
+                pdfContent.classList.add('hidden');
+            });
+        }
+
+        // Initialize the form
+        initializeInformationFields();
+    </script>
+</body>
+</html>
